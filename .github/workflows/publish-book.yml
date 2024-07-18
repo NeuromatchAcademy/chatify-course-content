@@ -7,7 +7,10 @@ env:
   NB_KERNEL: python
   NMA_REPO: course-content
   NMA_MAIN_BRANCH: main
-
+  CHATIFY: true
+  SOURCE_REPO: course-content
+  MOD_REPO: chatify-course-content
+  
 # This job installs dependencies, build the book, and pushes it to `gh-pages`
 jobs:
   build-and-deploy-book:
@@ -43,6 +46,24 @@ jobs:
           rm -r $BRANCH.tar.gz
           echo ci/ >> .gitignore
 
+      - name: Install Chatify, Add to Notebooks, Commit Changes
+        if: env.CHATIFY == 'true'
+        run: |
+          pip install -r ci/chatify/requirements.txt
+          python ci/chatify/process_notebooks.py
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add '**/student/*.ipynb'
+          git diff-index --quiet HEAD || git commit -m "Add chatify to student tutorial notebooks"
+
+      - name: Push Chatify Changes to Main
+        if: env.CHATIFY == 'true'
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+          force: false
+
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
@@ -74,7 +95,7 @@ jobs:
       - name: Build student book
         run: |
           python ci/generate_book.py student
-          jupyter-book toc migrate /home/runner/work/course-content/course-content/book/_toc.yml -o /home/runner/work/course-content/course-content/book/_toc.yml
+          jupyter-book toc migrate /home/runner/work/chatify-course-content/chatify-course-content/book/_toc.yml -o /home/runner/work/chatify-course-content/chatify-course-content/book/_toc.yml
           ln -s ../tutorials book/tutorials
           ln -s ../projects book/projects
           ln -s ../prereqs book/prereqs
@@ -85,7 +106,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          ghp-import -n -c "compneuro.neuromatch.io" -m "Update course book" book/_build/html
+          ghp-import -n -c "chatify.compneuro.neuromatch.io" -m "Update course book" book/_build/html
           git checkout -f gh-pages
 
       - name: Publish to gh-pages
